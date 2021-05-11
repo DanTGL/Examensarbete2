@@ -2,6 +2,10 @@ import time
 import copy
 import random
 import string
+import math
+import timeit
+
+TIMER_ITERATIONS = 250
 
 class Word:
 
@@ -85,14 +89,13 @@ def generate(words, grid_size):
     for y in range(grid_size):
         for x in range(grid_size):
             if word_stack[-1].grid[y][x] is None:
-                word_stack[-1].grid[y][x] = "0"
+                word_stack[-1].grid[y][x] = random.choice(string.ascii_uppercase)
     
     return word_stack[-1].grid
 
 
 def compare(str1, str2):
-    return -1 if str1 > str2 else 0 if str1 == str2 else 1
-
+    return ((str1 > str2) - (str1 < str2))
 
 def binary_search_prefix(arr, prefix):
     l = 0
@@ -102,11 +105,11 @@ def binary_search_prefix(arr, prefix):
 
         res = compare(prefix, arr[mid])
 
-        if res == 0:
+        if not res:
             return mid
 
         # Checks if the word starts with the given prefix
-        if arr[mid].startswith(prefix):
+        if res and arr[mid].startswith(prefix):
             return -2
         else:
             if res > 0:
@@ -115,6 +118,35 @@ def binary_search_prefix(arr, prefix):
                 r = mid - 1
 
     return -1
+
+def naive2(grid, words):
+    for y in range(len(grid)):
+        for x in range(len(grid[y])):
+            for dir in range(1, 4):
+                deltaX = dir & 0x01
+                deltaY = (dir >> 1) & 0x01
+
+                curX = x
+                curY = y
+
+                word = ""
+
+                result = -2
+                while True:
+                    if (curX + deltaX > len(grid) or curY + deltaY > len(grid)):
+                        break
+
+                    word += grid[curY][curX]
+
+                    curX += deltaX
+                    curY += deltaY
+
+                    if word in words:
+                        words.remove(word)
+                        if not len(words):
+                            return
+
+                        break
 
 def naive(grid, words):
     for y in range(len(grid)):
@@ -128,8 +160,8 @@ def naive(grid, words):
 
                 prefix = ""
 
-                result = -1
-                while True:
+                result = -2
+                while result == -2:
                     if (curX + deltaX > len(grid) or curY + deltaY > len(grid)):
                         break
 
@@ -140,29 +172,19 @@ def naive(grid, words):
 
                     result = binary_search_prefix(words, prefix)
 
-                    if result != -2:
-                        break
-
                 if result >= 0:
                     words.pop(result)
                     
                     if not len(words):
-                        print("SUCCESS")
-                        return True
-    print("FAILED")
-    return False
+                        return
 
-def optimized(grid, words, arr=[], depth=0, dir=0, pos=(0, 0), forceDir=False):
-    if depth >= len(grid):
+# TODO: Remove recursive calls to reduce function overhead
+def optimized(grid, words, arr=[], depth=0, dir=None, pos=(0, 0), forceDir=False):
+    if depth >= len(grid) or not len(words):
         return
-
-    if not len(words):
-        print("SUCCESS")
-        return
-    
     if not dir:
-        optimized(grid, words, arr, depth, 0x1, pos, forceDir)
-        optimized(grid, words, arr, depth, 0x2, pos, forceDir)
+        optimized(grid, words, depth=depth, dir=0x1, pos=pos, forceDir=forceDir)
+        optimized(grid, words, depth=depth, dir=0x2, pos=pos, forceDir=forceDir)
     else:
         dir_x = dir & 0x1
         dir_y = (dir >> 1) & 0x1
@@ -184,47 +206,54 @@ def optimized(grid, words, arr=[], depth=0, dir=0, pos=(0, 0), forceDir=False):
                 if not len(words):
                     return
 
+
         arr += char
 
         if not forceDir:
             optimized(grid, words, depth=0, dir=(~dir) & 0x3, pos=pos, forceDir=True)
             optimized(grid, words, depth=depth, dir=0x3, pos=pos, forceDir=True)
-        
-        pos = (pos[0] + dir_x, pos[1] + dir_y)
+            
+        pos = (pos_x + dir_x, pos_y + dir_y)
 
         optimized(grid, words, arr, depth + 1, dir, pos, forceDir)
 
 if __name__ == "__main__":
-    grid = [
+    """grid = [
         ['N', 'K', 'L', 'L', 'K', 'C'],
         ['R', 'B', 'S', 'L', 'K', 'A'],
         ['E', 'L', 'I', 'L', 'C', 'N'],
         ['D', 'I', 'F', 'R', 'N', 'D'],
         ['Y', 'K', 'C', 'U', 'D', 'Y'],
         ['Y', 'E', 'F', 'K', 'N', 'N']
-    ]
+    ]"""
 
-    words = ["BIRD", "CANDY", "FUN", "LIKE", "RED"]
+    words = ["BIRD", "CANDY", "FUN", "LIKE", "RED", "COOL", "PROGRAMMING", "CODING", "IDK", "SCHOOL", "HELLO"]
 
-    #grid = generate(words, 15)
+    grid = generate(words, 50)
     words.sort()
-    print(words)
-    for row in grid:
-        print(" ".join(row))
+    #print(words)
+    #for row in grid:
+    #    print(" ".join(row))
 
     words_copy = copy.copy(words)
 
-    #start = time.perf_counter()
-    #naive(grid, words_copy)
-    #end = time.perf_counter()
+    import profile
 
-    #print(f"The naive algorithm took {end - start:0.7f} seconds")
+    print("\n\nNaive:")
+    profile.run('naive(grid, words_copy)')
+    #wrapped = lambda: naive(grid, words_copy[:])
+    #time = timeit.timeit(wrapped, setup='words_copy = copy.copy(words)', number=TIMER_ITERATIONS, globals=globals())
+    #print(f"{time:0.7f}")
+    words_copy = copy.copy(words)
+    print("\n\nOptimized:")
+    profile.run('optimized(grid, words_copy)')
 
-    #start = time.perf_counter()
-    naive(grid, words_copy)
+    #print(words_copy)
+    #wrapped = lambda: optimized(grid, words_copy[:])
+    #time = timeit.timeit(wrapped, setup='words_copy = copy.copy(words)', number=TIMER_ITERATIONS, globals=globals())
+    #print(f"{time:0.7f}")
 
-    print(words_copy)
-    for row in grid:
-        print(" ".join(row))
-    #end = time.perf_counter()
-    #print(f"The optimized algorithm took {end - start:0.7f} seconds")
+    #print(f"The average time for the optimized algorithm is {average:0.7f} seconds")
+    #if len(words_copy):
+    #    raise Exception("Optimized algorithm didn't find every word. Remaining words:", words_copy)
+    
