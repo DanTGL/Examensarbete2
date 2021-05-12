@@ -109,7 +109,7 @@ def binary_search_prefix(arr, prefix):
             return mid
 
         # Checks if the word starts with the given prefix
-        if res and arr[mid].startswith(prefix):
+        if arr[mid].startswith(prefix):
             return -2
         else:
             if res > 0:
@@ -217,6 +217,51 @@ def optimized(grid, words, arr=[], depth=0, dir=None, pos=(0, 0), forceDir=False
 
         optimized(grid, words, arr, depth + 1, dir, pos, forceDir)
 
+
+def optimized2(grid, words, arr=[], dir=None, pos=(0, 0), forceDir=False):
+    if pos[0] >= len(grid) or pos[1] >= len(grid) or not len(words):
+        return
+
+    pos_x, pos_y = pos
+
+    if not dir:
+        char = grid[pos_y][pos_x]
+        optimized2(grid, words, arr=[char], dir=0x2, pos=(pos_x, pos_y + 1), forceDir=forceDir)
+        optimized2(grid, words, arr=[char], dir=0x3, pos=(pos_x + 1, pos_y + 1), forceDir=True)
+        
+        pos_x += 1
+        arr=[char]
+        dir = 0x1
+
+    dir_x = dir & 0x1
+    dir_y = (dir >> 1) & 0x1
+
+    while pos_x < len(grid) and pos_y < len(grid):
+
+        char = grid[pos_y][pos_x]
+
+        for i in range(len(arr) - 1, -1, -1):
+            result = binary_search_prefix(words, arr[i] + char)
+
+            if result == -2:
+                arr[i] += char
+            elif result == -1:
+                arr.pop(i)
+            else:
+                words.pop(result)
+                arr[i] += char
+                if not len(words):
+                    return
+
+
+        arr += char
+
+        if not forceDir:
+            optimized2(grid, words, arr=[char], dir=(~dir) & 0x3, pos=(pos_x + dir_y, pos_y + dir_x), forceDir=True)
+            optimized2(grid, words, arr=[char], dir=0x3, pos=(pos_x + 1, pos_y + 1), forceDir=True)
+        
+        pos_x, pos_y = pos_x + dir_x, pos_y + dir_y
+
 if __name__ == "__main__":
     """grid = [
         ['N', 'K', 'L', 'L', 'K', 'C'],
@@ -229,7 +274,7 @@ if __name__ == "__main__":
 
     words = ["BIRD", "CANDY", "FUN", "LIKE", "RED", "COOL", "PROGRAMMING", "CODING", "IDK", "SCHOOL", "HELLO"]
 
-    grid = generate(words, 50)
+    grid = generate(words, 200)
     words.sort()
     #print(words)
     #for row in grid:
@@ -237,23 +282,31 @@ if __name__ == "__main__":
 
     words_copy = copy.copy(words)
 
-    import profile
+    #import profile
 
-    print("\n\nNaive:")
-    profile.run('naive(grid, words_copy)')
+    #print("\n\nNaive:")
+    #profile.run('naive(grid, words_copy)')
     #wrapped = lambda: naive(grid, words_copy[:])
     #time = timeit.timeit(wrapped, setup='words_copy = copy.copy(words)', number=TIMER_ITERATIONS, globals=globals())
     #print(f"{time:0.7f}")
     words_copy = copy.copy(words)
-    print("\n\nOptimized:")
-    profile.run('optimized(grid, words_copy)')
+    #print("\n\nOptimized:")
+    #profile.run('optimized(grid, words_copy)')
 
     #print(words_copy)
-    #wrapped = lambda: optimized(grid, words_copy[:])
-    #time = timeit.timeit(wrapped, setup='words_copy = copy.copy(words)', number=TIMER_ITERATIONS, globals=globals())
-    #print(f"{time:0.7f}")
+    wrapped = lambda: naive(grid, words_copy[:])
+    time = timeit.timeit(wrapped, setup='words_copy = copy.copy(words)', number=51, globals=globals())
+    print(f"{time:0.7f}")
+
+
+
+    wrapped = lambda: optimized2(grid, words_copy[:])
+    time = timeit.timeit(wrapped, setup='words_copy = copy.copy(words)', number=51, globals=globals())
+    print(f"{time:0.7f}")
+    optimized2(grid, words_copy)
+    print(words_copy)
 
     #print(f"The average time for the optimized algorithm is {average:0.7f} seconds")
-    #if len(words_copy):
-    #    raise Exception("Optimized algorithm didn't find every word. Remaining words:", words_copy)
+    if len(words_copy):
+        raise Exception("Optimized algorithm didn't find every word. Remaining words:", words_copy)
     
