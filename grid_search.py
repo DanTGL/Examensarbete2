@@ -101,22 +101,31 @@ def binary_search_prefix(arr, prefix):
     l = 0
     r = len(arr) - 1
     
+    l_prefix = len(prefix)
+    result = -1
+
     while l <= r:
         mid = int(l + (r - l) / 2)
 
-        res = compare(prefix, arr[mid][:len(prefix)])
+        mid_str = arr[mid]
+
+        mid_str_prefix = mid_str[:l_prefix]
+
+        res = (prefix > mid_str_prefix) - (prefix < mid_str_prefix)
 
         if not res:
-            if len(prefix) != len(arr[mid]):
-                return -2
-            return mid
-        
-        if res > 0:
-            l = mid + 1
+            if l_prefix != len(mid_str):
+                result = -2
+                l = mid + 1
+            else:
+                return mid
         else:
-            r = mid - 1
+            if res > 0:
+                l = mid + 1
+            else:
+                r = mid - 1
 
-    return -1
+    return result
 
 def naive2(grid, words):
     for y in range(len(grid)):
